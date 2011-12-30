@@ -6,12 +6,16 @@ Created on Dec 25, 2011
 A suite of functions to identify trains on a specific rail line.
 
 '''
-from wmata import WMATA
+#from wmata import WMATA
 
 class Train:
-    def __init__(self, lineCode, destinationCode):
-        self.lineCode = lineCode
-        self.destinationCode = destinationCode
+    def __init__(self, railLine):
+        '''
+        Create a new train, associated with a RailLine object railLine.
+        '''
+        self.railLine = railLine
+        self.lineCode = railLine.lineCode
+        self.destinationCode = railLine.endStation[0]
         self.listings = []
     
     def update_location(self, nextStation):
@@ -22,6 +26,12 @@ class Train:
     
     def update_listings(self, newListing):
         self.listings.append(newListing)
+        self.destinationCode = newListing['DestinationCode']
+    
+    def findETA(self, stationCode):
+        for entry in self.listings:
+            if entry['LocationCode'] == stationCode:
+                return entry['Min']
 
 class RailLine:
     
@@ -76,60 +86,7 @@ class RailLine:
                          
                     arrivals.append(entry)
             station['Arrivals'] = arrivals
-    """
-    DEPRECATED FUNCTIONS:
-    def findTrains(self):
-        '''
-        Estimate the locations of trains in the system.
-        '''
-        self.Trains = []
-        
-        startingNumber = 0
-        while self.path[startingNumber]['Arrivals'] == []:
-            startingNumber = startingNumber + 1
-        for i in range(len(self.path[startingNumber]['Arrivals'])):
-            self.seekTrainForward(startingNumber, i)
-        
-    
-    def seekTrainForward(self, startingNumber, startingRank):
-        '''
-        startingNumber: Index of station to start with
-        startingRank: Rank of arriving train to count from. 0==First, 1==Second etc. 
-        
-        Treats the train at Rank startingRank arriving at station startingNumber as a new train.
-        Assumes that a train at the next station with arrivalTime > arrivalTime at the current station is the same train.
-        If it finds a train with lower arrivalTime, treat that as a new train and begin the process again.
-        
-        Returns the index of the final train station it found values for.
-        
-        '''
-        rank = startingRank
-        maxStation = startingNumber
-        # Create a new train:
-        if len(self.path[startingNumber]['Arrivals'])<rank+1: return startingNumber
-        newTrain = Train(self.lineCode, self.endStation)
-        print "Creating a new train, between " + self.path[startingNumber - 1]['StationName'] + " and " +  self.path[startingNumber]['StationName']
-        newTrain.update_location(self.path[startingNumber]['StationCode'])
-        newTrain.update_listings(self.path[startingNumber]['Arrivals'][rank])
-        
-        #Now advance forward:
-        counter = startingNumber + 1
-        while counter < len(self.path):
-            if len(self.path[counter]['Arrivals'])<rank+1: break
-            
-            if self.path[counter]['Arrivals'][rank]['Min'] > self.path[counter-1]['Arrivals'][rank]['Min']:
-                newTrain.update_listings(self.path[counter]['Arrivals'][rank])     
-            else:
-                maxStation = max(counter, self.seekTrainForward(counter, rank))
-                if len(self.path[counter]['Arrivals'])>rank+1:
-                    rank = rank + 1
-                    if self.path[counter]['Arrivals'][rank]['Min'] > self.path[counter-1]['Arrivals'][rank-1]['Min']:
-                        newTrain.update_listings(self.path[counter]['Arrivals'][rank])
-                else: break
-            counter = counter + 1     
-        self.Trains.append(newTrain)
-        return max(maxStation, counter)
-    """
+   
     
     def findTrains(self, filepath = None):
         '''
@@ -180,7 +137,7 @@ class RailLine:
                 #Associate the entry with the new train:
                 trainCount = trainCount + 1
                 self.trainCount = self.trainCount + 1
-                newTrain = Train(self.lineCode, self.endStation)
+                newTrain = Train(self)
                 print "Creating a new train, between " + self.path[startingNumber - 1]['StationName'] + " and " +  self.path[startingNumber]['StationName']
                 newTrain.update_location(self.path[startingNumber]['StationCode'])
                 entry['Train'] = trainCount
@@ -192,6 +149,7 @@ class RailLine:
         if trainCount == initTrainCount: return initTrainCount
         
         # Now advance forward:
+        # TODO: replace counter with enumerate.
         counter = startingNumber + 1
         while counter < len(self.path):
             for entry in self.path[counter]['Arrivals']:
@@ -207,4 +165,25 @@ class RailLine:
         self.Trains.append(newTrain)
         
                     
+    def estStationTiming(self):
+        '''
+        Run only after locating trains.
+        Estimates the travel time from station to station based on current PID data.
         
+        Creates a dictionary of stations, each of which contains a list of estimated
+        times from the previous station.
+        
+        TODO: Make more elegant.
+        '''
+        
+        stationTimes = {}
+        for index, station in enumerate(self.path[1:]):
+            stationTimes[station['StationCode']] = []
+            for train in self.Trains:
+                etaStation = train.findETA(station['StationCode'])
+                etaPrev = train.findETA(self.path[index]['StationCode'])
+                if etaStation != None and etaPrev != None:
+                    timing = etaStation - etaPrev
+                    stationTimes[station['StationCode']].append(timing)
+        return stationTimes
+                        
