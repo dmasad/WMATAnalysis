@@ -47,10 +47,16 @@ class RailLine:
         self.lineCode = lineCode
         self.reverse = reverse
         
+        self.stationTimes = {}
+        
         allLines = self.api.getRailLines(True) # Get data on all lines as a dict
          
         self.startStation = [allLines[self.lineCode]['StartStationCode'], allLines[self.lineCode]['InternalDestination1'] ]
         self.endStation = [allLines[self.lineCode]['EndStationCode'], allLines[self.lineCode]['InternalDestination2'] ]
+        if self.lineCode == 'YL': # Temporary hard-coding to deal with error in WMATA Yellow Line coding:
+            self.endStation[0] = 'E06'
+            self.endStation[1] = 'B06'
+        
         if self.reverse == True: # Reverse the direction if needed: 
             self.startStation, self.endStation = self.endStation, self.startStation
         
@@ -59,6 +65,7 @@ class RailLine:
         
         for station in self.path:
             station['Arrivals'] = []
+            self.stationTimes[station['StationCode']] = []
     
     def _matchPIDs(self, filepath=None):
         '''
@@ -101,6 +108,7 @@ class RailLine:
                 entry['Train'] = None 
         
         startingNumber = 0
+        #TODO: Handle cases where there are no trains.
         while self.path[startingNumber]['Arrivals'] == []:
             startingNumber = startingNumber + 1
 
@@ -138,7 +146,7 @@ class RailLine:
                 trainCount = trainCount + 1
                 self.trainCount = self.trainCount + 1
                 newTrain = Train(self)
-                print "Creating a new train, between " + self.path[startingNumber - 1]['StationName'] + " and " +  self.path[startingNumber]['StationName']
+                # print "Creating a new train, between " + self.path[startingNumber - 1]['StationName'] + " and " +  self.path[startingNumber]['StationName']
                 newTrain.update_location(self.path[startingNumber]['StationCode'])
                 entry['Train'] = trainCount
                 newTrain.update_listings(entry)
@@ -165,25 +173,24 @@ class RailLine:
         self.Trains.append(newTrain)
         
                     
-    def estStationTiming(self):
+    def updateStationTiming(self):
         '''
         Run only after locating trains.
-        Estimates the travel time from station to station based on current PID data.
+        Update the estimates of the travel time from station to station based on current PID data.
         
         Creates a dictionary of stations, each of which contains a list of estimated
         times from the previous station.
         
         TODO: Make more elegant.
+        This is an hacked-together temporary solution.
+        Eventually, implement a full database and pull timings based on day/time.
         '''
-        
-        stationTimes = {}
         for index, station in enumerate(self.path[1:]):
-            stationTimes[station['StationCode']] = []
             for train in self.Trains:
                 etaStation = train.findETA(station['StationCode'])
                 etaPrev = train.findETA(self.path[index]['StationCode'])
                 if etaStation != None and etaPrev != None:
                     timing = etaStation - etaPrev
-                    stationTimes[station['StationCode']].append(timing)
-        return stationTimes
+                    self.stationTimes[station['StationCode']].append(timing)
+    
                         
