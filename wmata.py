@@ -16,6 +16,7 @@ class WMATA(object):
     def __init__(self, api_key):
         self.api_key = api_key
         self.currentSchedule = [] # List that will hold the current schedule.
+        self.stationdata = {}     # Dictionary that will hold station data.
     
     def getSchedule(self, stationCodes="All", saved_filepath = None):
         '''
@@ -86,9 +87,27 @@ class WMATA(object):
         Returns a list of rail stations between startStation and endStation.
         '''
         
-        url = " http://api.wmata.com/Rail.svc/json/JPath?FromStationCode=" + startStation + "&ToStationCode=" + endStation + "&api_key=" + self.api_key
+        url = "http://api.wmata.com/Rail.svc/json/JPath?FromStationCode=" + startStation + "&ToStationCode=" + endStation + "&api_key=" + self.api_key
         path_json = urlopen(url)
         return json.loads(path_json.read())['Path']
+    
+    def getStationData(self, stationCode):
+        '''
+        Get station data.
+        '''
+        if stationCode not in self.stationdata:
+            url = "http://api.wmata.com/Rail.svc/json/JStationInfo?StationCode=" + stationCode + "&api_key=" + self.api_key
+            station_json = urlopen(url)
+            self.stationdata[stationCode] = json.loads(station_json.read())
+        return self.stationdata[stationCode]
+    
+    def saveStationData(self, filepath):
+        self._exportJSON(self.stationdata, filepath)
+    
+    def loadStationData(self, filepath):
+        stationdata = self._importJSON(filepath)
+        for station in stationdata:
+            self.stationdata[station] = stationdata[station]       
     
     def export_data(self, data, filepath):
         '''
@@ -113,10 +132,20 @@ class WMATA(object):
         f.write(json_data)
         f.close()
     
+    def _exportJSON(self, data, filepath):
+        f = open(filepath, "w")
+        json.dump(data, f)
+        f.close()
+        
     def _readJSON(self, filepath):
         f = open(filepath, "r")
         data = f.read()
         f.close()
+        return data
+    
+    def _importJSON(self, filepath):
+        f = open(filepath, "r")
+        data = json.loads(f.read())
         return data
             
         

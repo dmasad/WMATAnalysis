@@ -45,9 +45,18 @@ class WMATAManager:
             timing['timing'] = line.stationTimes
             all_timings.append(timing)
         
-        f = open(filepath, "w")
-        json.dump(all_timings, f)
-        f.close()
+        self.api._exportJSON(all_timings, filepath)
+    
+    def buildAllLines(self):
+        '''
+        Builds and exports a file with all station data.
+        '''
+        for line in self.rail_lines:
+            for station in line.path:
+                if station['StationCode'] not in self.api.stationdata:
+                    print station['StationCode']
+                    self.api.getStationData(station['StationCode'])
+        self.api.saveStationData("StationData.json")
     
     def importSchedule(self, filepath):
         f = open(filepath, "r")

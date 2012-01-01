@@ -32,6 +32,7 @@ class Train:
         for entry in self.listings:
             if entry['LocationCode'] == stationCode:
                 return entry['Min']
+    
 
 class RailLine:
     
@@ -191,6 +192,4 @@ class RailLine:
                 etaPrev = train.findETA(self.path[index]['StationCode'])
                 if etaStation != None and etaPrev != None:
                     timing = etaStation - etaPrev
-                    self.stationTimes[station['StationCode']].append(timing)
-    
-                        
+                    self.stationTimes[station['StationCode']].append(timing)                     
