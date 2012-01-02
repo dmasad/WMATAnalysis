@@ -7,8 +7,12 @@ A suite of functions to identify trains on a specific rail line.
 
 '''
 #from wmata import WMATA
+from __future__ import division
 
 class Train:
+    '''
+    Class to hold the information and methods on trains as they are identified. 
+    '''
     def __init__(self, railLine):
         '''
         Create a new train, associated with a RailLine object railLine.
@@ -33,6 +37,48 @@ class Train:
             if entry['LocationCode'] == stationCode:
                 return entry['Min']
     
+    def findLocation(self):
+        nextStation = self.railLine.stationDict[self.nextStation]
+        if nextStation.seqNum == 0:
+            # If it is the first station, assume it's at the station.
+            self.lat = nextStation.lat
+            self.lon = nextStation.lon
+        else:
+            prevStation = self.railLine.stationList[nextStation.seqNum - 1]
+            nextLat = nextStation.lat
+            nextLon = nextStation.lon
+            prevLat = prevStation.lat
+            prevLon = prevStation.lon
+            
+            fraction = self.findETA(self.nextStation)/nextStation.intervalTime()
+            self.lat = prevLat + (nextLat - prevLat)*fraction
+            self.lon = prevLon + (nextLon - prevLon)*fraction
+    
+class Station:
+    '''
+    Class to store the data relating to stations on the line.
+    '''
+    def __init__(self, railLine, station):
+        '''
+        railLine: the parent RailLine object.
+        station: output from the Rail Path API Method.
+        '''
+        self.stationCode = station['StationCode'] # The station code
+        self.stationName = station['StationName']
+        self.seqNum = int(station['SeqNum']) - 1 # Adjust the sequence number to correspond to the list.
+        self.arrivals = [] # List of PID entry objects associated with the station
+        self.intervalTimes = [] # List of estimated times from the previous station to this one.
+        
+        self.lat = railLine.api.getStationData(self.stationCode)['Lat']
+        self.lon = railLine.api.getStationData(self.stationCode)['Lon']
+        
+    
+    def intervalTime(self):
+        '''
+        Compute the current estimated travel time from the previous station.
+        '''
+        return sum(self.intervalTimes)/len(self.intervalTimes)
+    
 
 class RailLine:
     
@@ -50,6 +96,10 @@ class RailLine:
         
         self.stationTimes = {}
         
+        # List and Dictionary directories of the stations on the line.
+        self.stationList = []
+        self.stationDict = {}
+        
         allLines = self.api.getRailLines(True) # Get data on all lines as a dict
          
         self.startStation = [allLines[self.lineCode]['StartStationCode'], allLines[self.lineCode]['InternalDestination1'] ]
@@ -62,11 +112,12 @@ class RailLine:
             self.startStation, self.endStation = self.endStation, self.startStation
         
         
-        self.path = self.api.getRailPath(self.startStation[0], self.endStation[0])
+        path = self.api.getRailPath(self.startStation[0], self.endStation[0])
         
-        for station in self.path:
-            station['Arrivals'] = []
-            self.stationTimes[station['StationCode']] = []
+        for station in path:
+            newStation = Station(self, station)
+            self.stationList.append(newStation)
+            self.stationDict[newStation.stationCode] = newStation
     
     def _matchPIDs(self, filepath=None):
         '''
@@ -78,11 +129,11 @@ class RailLine:
         '''
         currentPIDs = self.api.getSchedule(saved_filepath=filepath)
         # Loop across all stations and find the appropriate PID entries
-        for station in self.path:
+        for station in self.stationList:
             arrivals = []
             for entry in currentPIDs:
                 if entry['DestinationCode'] == '': continue #Skip blank destination codes.
-                if entry['LocationCode'] == station['StationCode'] and entry['DestinationCode'] in self.endStation:
+                if entry['LocationCode'] == station.stationCode and entry['DestinationCode'] in self.endStation:
                     # Convert the arrival time to integers:
                     if entry['Min'] in ['ARR', "BRD"]: 
                         entry['Min'] = 0
@@ -93,7 +144,7 @@ class RailLine:
                             continue # Ignore empty or nonstandard entries
                          
                     arrivals.append(entry)
-            station['Arrivals'] = arrivals
+            station.arrivals = arrivals
    
     
     def findTrains(self, filepath = None):
@@ -104,17 +155,17 @@ class RailLine:
         self._matchPIDs(filepath)
         self.Trains = []
 
-        for station in self.path:
-            for entry in station['Arrivals']:
+        for station in self.stationList:
+            for entry in station.arrivals:
                 entry['Train'] = None 
         
         startingNumber = 0
         #TODO: Handle cases where there are no trains.
-        while self.path[startingNumber]['Arrivals'] == []:
+        while self.stationList[startingNumber].arrivals == []:
             startingNumber = startingNumber + 1
 
         self.trainCount = 0
-        for entry in self.path[startingNumber]['Arrivals']:
+        for entry in self.stationList[startingNumber].arrivals:
             self._seekTrainForward(startingNumber, len(self.Trains))
     
     
@@ -141,14 +192,14 @@ class RailLine:
         trainCount = initTrainCount
         maxWait = 0 # Maximum wait time for this train.
         # Create a new train
-        for entry in self.path[startingNumber]['Arrivals']:
+        for entry in self.stationList[startingNumber].arrivals:
             if entry['Train'] == None:
                 #Associate the entry with the new train:
                 trainCount = trainCount + 1
                 self.trainCount = self.trainCount + 1
                 newTrain = Train(self)
                 # print "Creating a new train, between " + self.path[startingNumber - 1]['StationName'] + " and " +  self.path[startingNumber]['StationName']
-                newTrain.update_location(self.path[startingNumber]['StationCode'])
+                newTrain.update_location(self.stationList[startingNumber].stationCode)
                 entry['Train'] = trainCount
                 newTrain.update_listings(entry)
                 maxWait = entry['Min']
@@ -160,8 +211,8 @@ class RailLine:
         # Now advance forward:
         # TODO: replace counter with enumerate.
         counter = startingNumber + 1
-        while counter < len(self.path):
-            for entry in self.path[counter]['Arrivals']:
+        while counter < len(self.stationList):
+            for entry in self.stationList[counter].arrivals:
                 if entry['Train'] == None: 
                     if entry['Min'] > maxWait:
                         entry['Train'] = trainCount
@@ -179,17 +230,14 @@ class RailLine:
         Run only after locating trains.
         Update the estimates of the travel time from station to station based on current PID data.
         
-        Creates a dictionary of stations, each of which contains a list of estimated
-        times from the previous station.
-        
         TODO: Make more elegant.
         This is an hacked-together temporary solution.
         Eventually, implement a full database and pull timings based on day/time.
         '''
-        for index, station in enumerate(self.path[1:]):
+        for index, station in enumerate(self.stationList[1:]):
             for train in self.Trains:
-                etaStation = train.findETA(station['StationCode'])
-                etaPrev = train.findETA(self.path[index]['StationCode'])
+                etaStation = train.findETA(station.stationCode)
+                etaPrev = train.findETA(self.stationList[index].stationCode)
                 if etaStation != None and etaPrev != None:
                     timing = etaStation - etaPrev
-                    self.stationTimes[station['StationCode']].append(timing)                     
+                    station.intervalTimes.append(timing)

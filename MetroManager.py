@@ -32,7 +32,18 @@ class WMATAManager:
         for line in self.rail_lines:
             line.findTrains("CurrentSchedule.json")
             line.updateStationTiming()
-    
+   
+    def buildAllLines(self):
+        '''
+        Builds and exports a file with all station data.
+        '''
+        for line in self.rail_lines:
+            for station in line.stationList:
+                if station.stationCode not in self.api.stationdata:
+                    print station.stationCode
+                    self.api.getStationData(station.stationCode)
+        self.api.saveStationData("StationData.json")  
+         
     def exportSchedules(self, filepath):
         '''
         Write the current timing between stations to a JSON file.
@@ -42,21 +53,10 @@ class WMATAManager:
             timing = {}
             timing['Line'] = line.lineCode
             timing['reverse'] = line.reverse
-            timing['timing'] = line.stationTimes
+            timing['timing'] = {station.stationCode : station.intervalTimes for station in line.stationList}
             all_timings.append(timing)
         
         self.api._exportJSON(all_timings, filepath)
-    
-    def buildAllLines(self):
-        '''
-        Builds and exports a file with all station data.
-        '''
-        for line in self.rail_lines:
-            for station in line.path:
-                if station['StationCode'] not in self.api.stationdata:
-                    print station['StationCode']
-                    self.api.getStationData(station['StationCode'])
-        self.api.saveStationData("StationData.json")
     
     def importSchedule(self, filepath):
         f = open(filepath, "r")
@@ -66,8 +66,8 @@ class WMATAManager:
         for line in self.rail_lines:
             for timing in all_timings:
                 if timing['Line'] == line.lineCode and timing['reverse'] == line.reverse:
-                    line.stationTimes = timing['timing'] 
-        
+                    for key in timing['timing']:
+                        line.stationDict[key].intervalTimes = timing['timing'][key]    
         
         
         
