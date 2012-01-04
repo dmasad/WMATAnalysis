@@ -51,6 +51,10 @@ class Train:
             prevLon = prevStation.lon
             
             fraction = self.findETA(self.nextStation)/nextStation.intervalTime()
+            if fraction>1: 
+                # Temporary hack, until better intervalTime is resolved.
+                fraction = 0.1
+                #print self.railLine.lineCode, self.nextStation
             self.lat = prevLat + (nextLat - prevLat)*fraction
             self.lon = prevLon + (nextLon - prevLon)*fraction
     

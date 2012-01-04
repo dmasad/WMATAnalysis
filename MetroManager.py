@@ -69,5 +69,33 @@ class WMATAManager:
                     for key in timing['timing']:
                         line.stationDict[key].intervalTimes = timing['timing'][key]    
         
+    def exportAllTracks(self, filepath):
+        '''
+        Generates a JSON file with the coordinates for each line.
+        '''
+        lineCoords = {}
+        for line in self.rail_lines:
+            if line.lineCode not in lineCoords:
+                lineCoords[line.lineCode] = []
+                for station in line.stationList:
+                    newcoords = [station.stationName, station.lat, station.lon]
+                    lineCoords[line.lineCode].append(newcoords)
+        self.api._exportJSON(lineCoords, filepath)
+    
+    def exportAllTrains(self, filepath):
+        '''
+        Find the positions of all trains and export as JSON file.
+        '''
+        trainCoords = {}
+        for line in self.rail_lines:
+            newTrains = []
+            line.findTrains()
+            for train in line.Trains:
+                train.findLocation()
+                newTrains.append([train.lat, train.lon])
+            if line.lineCode in trainCoords:
+                trainCoords[line.lineCode] = trainCoords[line.lineCode] + newTrains
+            else:
+                trainCoords[line.lineCode] = newTrains
         
-        
+        self.api._exportJSON(trainCoords, filepath)
