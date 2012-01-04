@@ -151,6 +151,25 @@ class RailLine:
             station.arrivals = arrivals
    
     
+    def _matchPIDs2(self, dictPID):
+        '''
+        Get the current PIDs from a dictionary of PIDs, keyed with a tuple of locationCode and endStation.
+        '''
+        
+        for station in self.stationList:
+            station.arrivals = dictPID[(station.stationCode, self.endStation)]
+            # Clean up entries:
+            for entry in station.arrivals:
+                # Convert the arrival time to integers:
+                if entry['Min'] in ['ARR', "BRD"]: 
+                    entry['Min'] = 0
+                else:
+                    try: 
+                        entry['Min'] = int(entry['Min'])
+                    except:
+                        continue # Ignore empty or nonstandard entries
+        
+    
     def findTrains(self, filepath = None):
         '''
         Estimate the locations of trains in the system.

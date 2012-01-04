@@ -21,6 +21,7 @@ class WMATA(object):
     def getSchedule(self, stationCodes="All", saved_filepath = None):
         '''
         Returns a list of rail schedule dictionaries.
+        
         stationCodes: Codes for the specific stations to look up. Generally 'All' for all stations.
         saved_filepath: Filepath to load saved schedule data, for testing and simulation purposes.
         '''
@@ -148,5 +149,17 @@ class WMATA(object):
         data = json.loads(f.read())
         return data
             
-        
-            
+    
+    def _listToDict(self, sourceList, keys):
+        '''
+        Converts sourceList, a list of Dicts, to a dict indexed by tuples of keys.
+        '''
+        newDict = {}
+        for entry in sourceList:
+            key = tuple(entry[dim] for dim in keys)
+            if key in newDict:
+                newDict[key].append(entry)
+            else:
+                newDict[key] = [entry]
+        return newDict
+                
