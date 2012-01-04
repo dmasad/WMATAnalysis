@@ -68,6 +68,12 @@ class WMATAManager:
                 if timing['Line'] == line.lineCode and timing['reverse'] == line.reverse:
                     for key in timing['timing']:
                         line.stationDict[key].intervalTimes = timing['timing'][key]    
+    
+    def exportAllTrains(self, filepath):
+        '''
+        Export the location of all trains to filepath as JSON code to be read by the map.
+        '''
+        
         
         
         

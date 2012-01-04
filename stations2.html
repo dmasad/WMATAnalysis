@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta name="viewport" content="initial-scale=1.0, user-scalable=no" />
+<style type="text/css">
+  html { height: 100% }
+  body { height: 100%; margin: 0; padding: 0 }
+  #map_canvas { height: 100% }
+</style>
+<script type="text/javascript"
+    src="http://maps.googleapis.com/maps/api/js?key=AIzaSyA3QHimYvKbZaL-ms9AeRmyzf7i2uxIPGA&sensor=false">
+</script>
+<script type="text/javascript">
+  
+  var map;
+  
+  function initialize() {
+    var latlng = new google.maps.LatLng(38.897605896, -77.0365219116);
+    var myOptions = {
+      zoom: 13,
+      center: latlng,
+      mapTypeId: google.maps.MapTypeId.ROADMAP
+    };
+    map = new google.maps.Map(document.getElementById("map_canvas"), myOptions);
+    
+    var request = new XMLHttpRequest();
+        request.overrideMimeType("application/json");
+        request.open('GET', 'LinePaths.json', true);
+        request.onreadystatechange = function() {
+        if(request.readyState == 4) {
+            drawLines(request.responseText);}
+        };
+        request.send(null);
+    
+    }
+    
+    function drawLines(rawdata) {
+        var trainLines = JSON.parse(rawdata);
+        //console.log("Here");
+        var allLines = []
+        for (var line in trainLines) {
+            var newPath = [];
+            for (var station in trainLines[line])
+            {
+                var newLat =  trainLines[line][station][1];
+                var newLong = trainLines[line][station][2];
+                var newStation = new google.maps.LatLng(newLat, newLong);
+                newPath.push(newStation);
+                var marker = new google.maps.Marker({
+                position: newStation,
+                map: map,
+                title: trainLines[line][station][0]
+                });
+                
+                var infoWindow = new google.maps.InfoWindow();
+                
+                google.maps.event.addListener(marker, 'click', function() {
+                    infoWindow.setContent(this.title);
+                    infoWindow.open(map, this);
+                });
+                
+            }
+            allLines.push(new google.maps.Polyline(
+                {
+                path: newPath,
+                strokeColor: line,
+                strokeOpacity:  0.8,
+                strokeWeight: 5
+                }
+            ));
+        }
+        for (var line in allLines) {
+            allLines[line].setMap(map)
+        }
+        
+    }
+    
+
+</script>
+</head>
+<body onload="initialize()">
+  <div id="map_canvas" style="width:100%; height:100%"></div>
+</body>
+</html>
