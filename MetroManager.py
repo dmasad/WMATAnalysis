@@ -27,18 +27,8 @@ class WMATAManager:
             for direction in [True, False]:
                 self.rail_lines.append(RailLine(self.api, line, reverse=direction))
     
-    def updateLines(self):
-        '''
-        Gets the current PID schedule, and find all trains on all lines.
-        Then update the interval timing based on the new data.
-        '''
-        self.api.updateSchedule()
-        
-        for line in self.rail_lines:
-            line.findTrains()
-            line.updateStationTiming()
    
-    def updateLines2(self):
+    def updateLines(self):
         '''
         Gets the current PID schedule, and find all trains on all lines.
         Then update the interval timing based on the new data.

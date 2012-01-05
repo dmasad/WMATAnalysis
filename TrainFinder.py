@@ -122,35 +122,9 @@ class RailLine:
             newStation = Station(self, station)
             self.stationList.append(newStation)
             self.stationDict[newStation.stationCode] = newStation
-    
-    def _matchPIDs(self):
-        '''
-        Get the current PIDs and add them to the relevant stations.
-        After running this function, each station in the path list will have an 'Arrivals' key
-        which will hold a list of PID entries.
-        '''
-        
-        currentPIDs = self.api.currentSchedule
-        # Loop across all stations and find the appropriate PID entries
-        for station in self.stationList:
-            arrivals = []
-            for entry in currentPIDs:
-                if entry['DestinationCode'] == '': continue #Skip blank destination codes.
-                if entry['LocationCode'] == station.stationCode and entry['DestinationCode'] in self.endStation:
-                    # Convert the arrival time to integers:
-                    if entry['Min'] in ['ARR', "BRD"]: 
-                        entry['Min'] = 0
-                    else:
-                        try: 
-                            entry['Min'] = int(entry['Min'])
-                        except:
-                            continue # Ignore empty or nonstandard entries
-                         
-                    arrivals.append(entry)
-            station.arrivals = arrivals
    
     
-    def _matchPIDs2(self, dictPID):
+    def _matchPIDs(self, dictPID):
         '''
         Get the current PIDs from a dictionary of PIDs, keyed with a tuple of locationCode and endStation.
         '''
@@ -169,10 +143,12 @@ class RailLine:
                         continue # Ignore empty or nonstandard entries
         
     
-    def findTrains(self):
+    def findTrains(self, dictPID):
         '''
         Estimate the locations of trains in the system.
-        filepath: Path for a saved JSON schedule to load, for testing purposes.
+        
+        dictPID: A dictionary keyed with tuples (StationCode, EndStation)
+            listing all relevant PID entries for that station in that direction.
         '''
         self._matchPIDs()
         self.Trains = []
