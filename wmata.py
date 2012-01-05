@@ -9,7 +9,7 @@ Python class for working with WMATA API
 import json
 import csv
 from urllib2 import urlopen
-
+from collections import defaultdict
 
 class WMATA(object):
 
@@ -18,7 +18,7 @@ class WMATA(object):
         self.currentSchedule = [] # List that will hold the current schedule.
         self.stationdata = {}     # Dictionary that will hold station data.
     
-    def getSchedule(self, stationCodes="All", saved_filepath = None):
+    def updateSchedule(self, stationCodes="All", saved_filepath = None):
         '''
         Returns a list of rail schedule dictionaries.
         
@@ -27,25 +27,30 @@ class WMATA(object):
         '''
         if saved_filepath == None:
             # Update the schedule from the API and return it.
-            self.updateSchedule(stationCodes)
-            return self.currentSchedule
+            url = "http://api.wmata.com/StationPrediction.svc/json/GetPrediction/" \
+                    + stationCodes + "?api_key=" + self.api_key
+            schedule_json = urlopen(url)
+            self.currentSchedule =  json.loads(schedule_json.read())['Trains']
         else:
             # Load the specified saved file.
             saved_json = open(saved_filepath, "r")
             schedule_json = saved_json.read()
             saved_json.close()
-            return json.loads(schedule_json)
+            self.currentSchedule = json.loads(schedule_json)
     
-    def updateSchedule(self, stationCodes="All"):
+    def scheduleDict(keys):
         '''
-        Updates the current schedule from the API.
+        Return a dictionary of PID entries, keyed by a tuple of the fields in keys.
+        
+        keys: list of PID Entry fields.
+        TODO: Verify keys.
         '''
-        url = "http://api.wmata.com/StationPrediction.svc/json/GetPrediction/" + stationCodes + "?api_key=" + self.api_key
-        schedule_json = urlopen(url)
-        self.currentSchedule =  json.loads(schedule_json.read())['Trains']
-    
+        return self._listToDict(self.currentSchedule, keys)
+        
     def saveSchedule(self, filepath):
-        # Save the current schedule in JSON form.
+        '''
+        Save the current arrival schedule in JSON form.
+        '''
         if self.currentSchedule != []:
             f = open(filepath, "w")
             json.dump(self.currentSchedule, f)
@@ -154,12 +159,9 @@ class WMATA(object):
         '''
         Converts sourceList, a list of Dicts, to a dict indexed by tuples of keys.
         '''
-        newDict = {}
+        newDict = defaultdict(list)
         for entry in sourceList:
             key = tuple(entry[dim] for dim in keys)
-            if key in newDict:
-                newDict[key].append(entry)
-            else:
-                newDict[key] = [entry]
+            newDict[key].append(entry)
         return newDict
                 

@@ -123,15 +123,14 @@ class RailLine:
             self.stationList.append(newStation)
             self.stationDict[newStation.stationCode] = newStation
     
-    def _matchPIDs(self, filepath=None):
+    def _matchPIDs(self):
         '''
         Get the current PIDs and add them to the relevant stations.
         After running this function, each station in the path list will have an 'Arrivals' key
         which will hold a list of PID entries.
-        
-        filepath: Filepath of a saved JSON schedule to load.
         '''
-        currentPIDs = self.api.getSchedule(saved_filepath=filepath)
+        
+        currentPIDs = self.api.currentSchedule
         # Loop across all stations and find the appropriate PID entries
         for station in self.stationList:
             arrivals = []
@@ -170,12 +169,12 @@ class RailLine:
                         continue # Ignore empty or nonstandard entries
         
     
-    def findTrains(self, filepath = None):
+    def findTrains(self):
         '''
         Estimate the locations of trains in the system.
         filepath: Path for a saved JSON schedule to load, for testing purposes.
         '''
-        self._matchPIDs(filepath)
+        self._matchPIDs()
         self.Trains = []
 
         for station in self.stationList:
@@ -257,10 +256,10 @@ class RailLine:
         This is an hacked-together temporary solution.
         Eventually, implement a full database and pull timings based on day/time.
         '''
-        for index, station in enumerate(self.stationList[1:]):
+        for index, station in enumerate(self.stationList[1:]): # Index starts counting from 0.
             for train in self.Trains:
                 etaStation = train.findETA(station.stationCode)
-                etaPrev = train.findETA(self.stationList[index].stationCode)
+                etaPrev = train.findETA(self.stationList[index].stationCode) # Index here = actual index - 1
                 if etaStation != None and etaPrev != None:
                     timing = etaStation - etaPrev
                     station.intervalTimes.append(timing)
