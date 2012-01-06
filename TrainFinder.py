@@ -13,13 +13,13 @@ class Train:
     '''
     Class to hold the information and methods on trains as they are identified. 
     '''
-    def __init__(self, railLine):
+    def __init__(self, railLine, destinationCode):
         '''
         Create a new train, associated with a RailLine object railLine.
         '''
         self.railLine = railLine
         self.lineCode = railLine.lineCode
-        self.destinationCode = railLine.endStation[0]
+        self.destinationCode = destinationCode
         self.listings = []
     
     def update_location(self, nextStation):
@@ -30,7 +30,6 @@ class Train:
     
     def update_listings(self, newListing):
         self.listings.append(newListing)
-        self.destinationCode = newListing['DestinationCode']
     
     def findETA(self, stationCode):
         for entry in self.listings:
@@ -109,8 +108,10 @@ class RailLine:
         self.startStation = [allLines[self.lineCode]['StartStationCode'], allLines[self.lineCode]['InternalDestination1'] ]
         self.endStation = [allLines[self.lineCode]['EndStationCode'], allLines[self.lineCode]['InternalDestination2'] ]
         if self.lineCode == 'YL': # Temporary hard-coding to deal with error in WMATA Yellow Line coding:
-            self.endStation[0] = 'E06'
-            self.endStation[1] = 'B06'
+            self.startStation = [u'C15', '']
+            self.endStation[0] = u'E06'
+            self.endStation[1] = u'B06'
+            self.endStation.append(u'E01')
         
         if self.reverse == True: # Reverse the direction if needed: 
             self.startStation, self.endStation = self.endStation, self.startStation
@@ -130,11 +131,12 @@ class RailLine:
         '''
         
         for station in self.stationList:
-            station.arrivals = dictPID[(station.stationCode, self.endStation[0])]
-            if self.endStation[1] != '':
-                station.arrivals = station.arrivals + dictPID[(station.stationCode, self.endStation[1])]
+            arrivals = []
+            for i in range(len(self.endStation)):
+                if self.endStation[i] != '':
+                    arrivals = arrivals + dictPID[(station.stationCode, self.endStation[i])]
             # Clean up entries:
-            for entry in station.arrivals:
+            for entry in arrivals:
                 # Convert the arrival time to integers:
                 if entry['Min'] in ['ARR', "BRD"]: 
                     entry['Min'] = 0
@@ -142,7 +144,8 @@ class RailLine:
                     try: 
                         entry['Min'] = int(entry['Min'])
                     except:
-                        continue # Ignore empty or nonstandard entries
+                        arrivals.remove(entry) # Remove empty or nonstandard entries
+            station.arrivals = sorted(arrivals, key=lambda k: k['Min'])
         
     
     def findTrains(self, dictPID):
@@ -159,17 +162,19 @@ class RailLine:
             for entry in station.arrivals:
                 entry['Train'] = None 
         
-        startingNumber = 0
-        #TODO: Handle cases where there are no trains.
-        while self.stationList[startingNumber].arrivals == [] and startingNumber < len(self.stationList):
-            startingNumber = startingNumber + 1
 
+        startingNumber = 0
+        
+        while startingNumber < len(self.stationList):
+            if self.stationList[startingNumber].arrivals != []: break
+            startingNumber = startingNumber + 1
+    
         self.trainCount = 0
         for entry in self.stationList[startingNumber].arrivals:
             self._seekTrainForward(startingNumber, len(self.Trains))
     
     
-    def _seekTrainForward(self, startingNumber, initTrainCount):
+    def _seekTrainForward(self, startingNumber, initTrainCount, destinationCode=None):
         '''
         startingNumber: Index of station to start with.
         initTrainCount: Trains already added to the system.
@@ -193,11 +198,12 @@ class RailLine:
         maxWait = 0 # Maximum wait time for this train.
         # Create a new train
         for entry in self.stationList[startingNumber].arrivals:
-            if entry['Train'] == None:
+            if entry['Train'] == None and (entry['DestinationCode']==destinationCode or destinationCode is None):
                 #Associate the entry with the new train:
                 trainCount = trainCount + 1
                 self.trainCount = self.trainCount + 1
-                newTrain = Train(self)
+                newTrain = Train(self, destinationCode)
+                destinationCode = entry['DestinationCode']
                 # print "Creating a new train, between " + self.path[startingNumber - 1]['StationName'] + " and " +  self.path[startingNumber]['StationName']
                 newTrain.update_location(self.stationList[startingNumber].stationCode)
                 entry['Train'] = trainCount
@@ -214,11 +220,13 @@ class RailLine:
         while counter < len(self.stationList):
             for entry in self.stationList[counter].arrivals:
                 if entry['Train'] == None: 
-                    if entry['Min'] > maxWait:
+                    if entry['Min'] > maxWait and entry['DestinationCode']==destinationCode:
                         entry['Train'] = trainCount
                         newTrain.update_listings(entry)
                         maxWait = entry['Min']
                         break
+                    elif entry['DestinationCode']==destinationCode:
+                        self._seekTrainForward(counter, self.trainCount, destinationCode)
                     else:
                         self._seekTrainForward(counter, self.trainCount)
             counter = counter + 1
