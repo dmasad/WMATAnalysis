@@ -82,9 +82,9 @@ class WMATAManager:
         f = open(filepath, "r")
         all_intervals = json.loads(f.read())
         f.close()
-        
+        #TODO: Make Faster
         for line in self.rail_lines:
-            for timing in all_timings:
+            for timing in all_intervals:
                 if timing['Line'] == line.lineCode and timing['reverse'] == line.reverse:
                     for key in timing['timing']:
                         line.stationDict[key].intervalTimes = timing['timing'][key]    
@@ -107,9 +107,12 @@ class WMATAManager:
         Find the positions of all trains and export as JSON file.
         '''
         trainCoords = {}
+        self.api.updateSchedule()
+        scheduleDict = self.api.scheduleDict(['LocationCode','DestinationCode'])
+        
         for line in self.rail_lines:
             newTrains = []
-            line.findTrains()
+            line.findTrains(scheduleDict)
             for train in line.Trains:
                 train.findLocation()
                 newTrains.append([train.lat, train.lon])

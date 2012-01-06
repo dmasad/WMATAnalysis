@@ -99,7 +99,7 @@ class RailLine:
         self.reverse = reverse
         
         self.stationTimes = {}
-        
+        self.Trains = []
         # List and Dictionary directories of the stations on the line.
         self.stationList = []
         self.stationDict = {}
@@ -130,7 +130,9 @@ class RailLine:
         '''
         
         for station in self.stationList:
-            station.arrivals = dictPID[(station.stationCode, self.endStation)]
+            station.arrivals = dictPID[(station.stationCode, self.endStation[0])]
+            if self.endStation[1] != '':
+                station.arrivals = station.arrivals + dictPID[(station.stationCode, self.endStation[1])]
             # Clean up entries:
             for entry in station.arrivals:
                 # Convert the arrival time to integers:
@@ -150,7 +152,7 @@ class RailLine:
         dictPID: A dictionary keyed with tuples (StationCode, EndStation)
             listing all relevant PID entries for that station in that direction.
         '''
-        self._matchPIDs()
+        self._matchPIDs(dictPID)
         self.Trains = []
 
         for station in self.stationList:
@@ -159,7 +161,7 @@ class RailLine:
         
         startingNumber = 0
         #TODO: Handle cases where there are no trains.
-        while self.stationList[startingNumber].arrivals == []:
+        while self.stationList[startingNumber].arrivals == [] and startingNumber < len(self.stationList):
             startingNumber = startingNumber + 1
 
         self.trainCount = 0

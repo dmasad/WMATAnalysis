@@ -38,7 +38,7 @@ class WMATA(object):
             saved_json.close()
             self.currentSchedule = json.loads(schedule_json)
     
-    def scheduleDict(keys):
+    def scheduleDict(self, keys):
         '''
         Return a dictionary of PID entries, keyed by a tuple of the fields in keys.
         
