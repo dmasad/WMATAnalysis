@@ -49,10 +49,14 @@ class Train:
             prevLat = prevStation.lat
             prevLon = prevStation.lon
             
-            fraction = self.findETA(self.nextStation)/nextStation.intervalTime()
+            try:
+                fraction = self.findETA(self.nextStation)/nextStation.intervalTime()
+            except:
+                # In face of divide by zero error.
+                fraction = 0.5
             if fraction>1: 
                 # Temporary hack, until better intervalTime is resolved.
-                fraction = 0.1
+                fraction = 0.5
                 #print self.railLine.lineCode, self.nextStation
             self.lat = prevLat + (nextLat - prevLat)*fraction
             self.lon = prevLon + (nextLon - prevLon)*fraction
@@ -233,7 +237,7 @@ class RailLine:
         self.Trains.append(newTrain)
         
                     
-    def updateStationTiming(self):
+    def updateStationIntervals(self):
         '''
         Run only after locating trains.
         Update the estimates of the travel time from station to station based on current PID data.
@@ -243,6 +247,7 @@ class RailLine:
         Eventually, implement a full database and pull timings based on day/time.
         '''
         for index, station in enumerate(self.stationList[1:]): # Index starts counting from 0.
+            station.intervalTimes = []
             for train in self.Trains:
                 etaStation = train.findETA(station.stationCode)
                 etaPrev = train.findETA(self.stationList[index].stationCode) # Index here = actual index - 1
