@@ -30,7 +30,7 @@ class WMATA(object):
         url = "http://api.wmata.com/StationPrediction.svc/json/GetPrediction/" \
                 + stationCodes + "?api_key=" + self.api_key
         schedule_json = urlopen(url)
-        self.currentSchedule =  json.loads(schedule_json.read())['Trains']
+        return json.loads(schedule_json.read())['Trains']
     
     def scheduleDict(self, keys):
         '''
@@ -67,7 +67,7 @@ class WMATA(object):
         f = open("WMATALines.json", "w")
         f.write(lines_raw)
         f.close()
-        return = json.loads(lines_raw)['Lines']
+        return json.loads(lines_raw)['Lines']
         
     
     def getRailPath(self, startStation, endStation):

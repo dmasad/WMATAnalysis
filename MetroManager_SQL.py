@@ -30,20 +30,19 @@ class WMATAManager:
         Initialize the system with a valid WMATA API key
         '''
         self.api = WMATA(api_key)
-        self.db = WMATADatabase(database)
+        self.db = WMATADatabase(self, database)
         self.current_time = ""
         self.currentSchedule = [] # List that holds the current schedule.
-        self.stationData = {}     # Dictionary that holds the station data.
+        self.stationData = self.db.loadStations() # Dictionary that holds the station data.
         self.lineData = {}        # Dictionary that holds the API line data.
-        self._getRailLines # Load the rail line data.
+        self._getRailLines() # Load the rail line data.
         
         
         
         # Initialize the rail lines:
         # (NOTE: All necessary data should be loaded by this point)
         # ----------------------------------------------------------
-        
-        self.rail_lines = []
+        self.rail_lines = [] # List which will hold all the rail line objects.
         for line in LINES:
             for direction in [False, True]:
                 self.rail_lines.append(RailLine(self, line, reverse=direction))
@@ -58,11 +57,12 @@ class WMATAManager:
         #TODO: Integrate with Database
         lines_list = self.api.getRailLines()
         for line in lines_list:
+            print line['LineCode']
             self.lineData[line['LineCode']] = line
     
-    def getRailPath(startStation, endStation):
+    def getRailPath(self, startStation, endStation):
         #TODO: Integrate with Database.
-        return api.getRailPath(startStation, endStation)
+        return self.api.getRailPath(startStation, endStation)
     
     def updateSchedule(self):
         '''

@@ -22,7 +22,7 @@ class WMATADatabase:
         database: the database connection path.
         '''
         
-        self.db = sqlite3.connect(database)
+        self.db = sqlite3.connect(database, detect_types=sqlite3.PARSE_DECLTYPES)
     
     def initializeDatabase(self):
         '''
@@ -143,7 +143,7 @@ class WMATADatabase:
         '''
         cursor = self.db.cursor()
         for entry in schedule:
-            entry['CurrentTime'] = self.current_time
+            entry['CurrentTime'] = currentTime
             cursor.execute('''
                 INSERT INTO ArrivalTimes 
                 VALUES (
@@ -164,16 +164,16 @@ class WMATADatabase:
         '''
         Loads a schedule saved with the targetTime Timestamp.
         '''
-        KEYS = ["CurrentTime", "Group", "Min", "DestinationCode", "Car", "Destination"\ 
+        KEYS = ["CurrentTime", "Group", "Min", "DestinationCode", "Car", "Destination"\
                 "DestinationName", "LocationName", "Line", "LocationCode"]
         allArrivals = []
         arrivalResults = self.db.execute("""SELECT * FROM ArrivalTimes 
-                                        WHERE DATETIME(CurrentTime) = DATETIME(?)""",\
+                                        WHERE DATETIME(EntryTime) = DATETIME(?)""",\
                                         (targetTime,)).fetchall()
         for arrivalTuple in arrivalResults:
             newArrival = {}
             for index in range(len(KEYS)):
-                newArrivals[KEYS[index]] = arrivalTuple[index]
+                newArrival[KEYS[index]] = arrivalTuple[index]
             allArrivals.append(newArrival)
         
         return allArrivals
