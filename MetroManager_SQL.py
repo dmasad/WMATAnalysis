@@ -146,6 +146,7 @@ class WMATAManager:
             if i % saveRate==0: saveData = True
             else: saveData = False
             
+            self.importIntervals()
             self.updateCurrentSchedule(saveData)
             self.exportIntervals( )
             self.exportAllTrains(trainFilePath)
