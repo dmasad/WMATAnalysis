@@ -20,21 +20,48 @@ class Train:
         self.railLine = railLine
         self.lineCode = railLine.lineCode
         self.destinationCode = destinationCode
-        self.listings = []
+        self.listings = []     # List of all PID Listings associated with the train.
+        self.arrivalTimes = {} # Dictionary of arrival times for the train, by station.
+        
+        self.nextStation = ""        # Station code for the next station.
+        self.nextStationIndex = None # Station index for the next station
+        
+        self.end_of_track = False    # Flag set to TRUE when the train is at the end of the track.
     
     def update_location(self, nextStation):
         '''
         The train's location is defined as the the next one it will arrive at.
         '''
         self.nextStation = nextStation
+        self.nextStationIndex = self.railLine.stationDict[self.nextStation].seqNum
     
     def update_listings(self, newListing):
         self.listings.append(newListing)
+        self.arrivalTimes[newListing['LocationCode']] = newListing['Min']
     
     def findETA(self, stationCode):
-        for entry in self.listings:
-            if entry['LocationCode'] == stationCode:
-                return entry['Min']
+        if stationCode in self.arrivalTimes:
+            return self.arrivalTimes[stationCode]
+        else:
+            return None
+    
+    def advance(self, minutes):
+        '''
+        Advance all arrivalTimes by the given # of minutes, and adjust location accordingly.
+        minutes: number of minutes to advance entries by.
+        
+        TODO: Project forward using estimated travel times. 
+        '''
+        
+        for key in self.arrivalTimes:
+            self.arrivalTimes[key] -= minutes
+        
+        while self.arrivalTimes[self.nextStation] < 0:
+            if self.nextStation == self.destinationCode:
+                self.end_of_track = True
+                self.nextStation = None
+            else:
+                self.update_location(self.railLine.stationList[self.nextStationIndex+1].stationCode) # TODO: Make this less hideous.
     
     def findLocation(self):
         nextStation = self.railLine.stationDict[self.nextStation]
@@ -169,7 +196,14 @@ class RailLine:
         
 
         startingNumber = 0
+        self.trainCount = 0
         
+        for station in self.stationList:
+            for entry in station.arrivals:
+                if entry['Train'] is None: self._seekTrainForward(startingNumber, len(self.Trains))
+            startingNumber = startingNumber + 1
+            
+        '''
         while startingNumber < len(self.stationList):
             if self.stationList[startingNumber].arrivals != []: break
             startingNumber = startingNumber + 1
@@ -177,7 +211,7 @@ class RailLine:
         self.trainCount = 0
         for entry in self.stationList[startingNumber].arrivals:
             self._seekTrainForward(startingNumber, len(self.Trains))
-    
+        '''
     
     def _seekTrainForward(self, startingNumber, initTrainCount, destinationCode=None):
         '''
