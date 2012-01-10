@@ -8,10 +8,9 @@ database for storing all the relevant information.
 
 '''
 #import json
-import sqlite3
 from collections import defaultdict
 from datetime import datetime
-from time import sleep
+
 
 from TrainLines import RailLine
 from wmata import WMATA
@@ -19,7 +18,7 @@ from WMATADatabase import WMATADatabase
 
 LINES = ["RD", "OR", "BL", "YL", "GR"]
 
-class WMATAManager:
+class WMATAManager(object):
     '''
     A class intended to manage acquiring and analyzing data for the 
     entire Metro system. Uses a SQLite database to store the information.
@@ -48,6 +47,16 @@ class WMATAManager:
                 self.rail_lines.append(RailLine(self, line, reverse=direction))
     
   
+    
+    def findTrains(self):
+        '''
+        Find all the trains in the current schedule.
+        '''
+        pidDict = self._listToDict(self.currentSchedule, ['LocationCode','DestinationCode'])
+        for line in self.rail_lines:
+            line.findTrains(pidDict)
+     
+            
     
     """
     DATA COLLECTION FROM THE API

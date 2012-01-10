@@ -64,9 +64,6 @@ class WMATA(object):
         url = "http://api.wmata.com/Rail.svc/json/JLines?api_key=" + self.api_key
         lines_json = urlopen(url)
         lines_raw = lines_json.read()
-        f = open("WMATALines.json", "w")
-        f.write(lines_raw)
-        f.close()
         return json.loads(lines_raw)['Lines']
         
     

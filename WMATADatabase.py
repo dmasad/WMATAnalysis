@@ -7,6 +7,7 @@ Class to manage the Metro Database.
 '''
 
 import sqlite3
+from collections import defaultdict
 
 class WMATADatabase:
     '''
@@ -114,8 +115,7 @@ class WMATADatabase:
         
         cursor = self.db.cursor()
         cursor.executemany("INSERT INTO IntervalTimes VALUES  (?, ?, ?, ?, ?)", \
-                           [(self.current_time, line.lineCode, direction, station.stationCode, interval) 
-                             for interval in station.intervalTimes])
+                           [entry for entry in intervalList])
         self.db.commit()
     
     def loadIntervals(self):
@@ -164,7 +164,7 @@ class WMATADatabase:
         '''
         Loads a schedule saved with the targetTime Timestamp.
         '''
-        KEYS = ["CurrentTime", "Group", "Min", "DestinationCode", "Car", "Destination"\
+        KEYS = ["CurrentTime", "Group", "Min", "DestinationCode", "Car", "Destination",\
                 "DestinationName", "LocationName", "Line", "LocationCode"]
         allArrivals = []
         arrivalResults = self.db.execute("""SELECT * FROM ArrivalTimes 
