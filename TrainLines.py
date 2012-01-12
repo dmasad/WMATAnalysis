@@ -23,7 +23,7 @@ class Train:
         self.listings = []     # List of all PID Listings associated with the train.
         self.arrivalTimes = {} # Dictionary of arrival times for the train, by station.
         
-        self.nextStation = ""        # Station code for the next station.
+        self.nextStation = None        # Station object for the next station.
         self.nextStationIndex = None # Station index for the next station
         
         self.end_of_track = False    # Flag set to TRUE when the train is at the end of the track.
@@ -33,7 +33,7 @@ class Train:
         The train's location is defined as the the next one it will arrive at.
         '''
         self.nextStation = nextStation
-        self.nextStationIndex = self.railLine.stationDict[self.nextStation].seqNum
+        
     
     def update_listings(self, newListing):
         self.listings.append(newListing)
@@ -56,28 +56,27 @@ class Train:
         for key in self.arrivalTimes:
             self.arrivalTimes[key] -= minutes
         
-        while self.arrivalTimes[self.nextStation] < 0:
-            if self.nextStation == self.destinationCode:
+        while self.arrivalTimes[self.nextStation.stationCode] < 0:
+            if self.nextStation == None:
                 self.end_of_track = True
                 self.nextStation = None
             else:
                 self.update_location(self.railLine.stationList[self.nextStationIndex+1].stationCode) # TODO: Make this less hideous.
     
     def findLocation(self):
-        nextStation = self.railLine.stationDict[self.nextStation]
-        if nextStation.seqNum == 0:
+        if self.nextStation.seqNum == 0:
             # If it is the first station, assume it's at the station.
-            self.lat = nextStation.lat
-            self.lon = nextStation.lon
+            self.lat = self.nextStation.lat
+            self.lon = self.nextStation.lon
         else:
-            prevStation = self.railLine.stationList[nextStation.seqNum - 1]
-            nextLat = nextStation.lat
-            nextLon = nextStation.lon
+            prevStation = self.railLine.stationList[self.nextStation.seqNum - 1]
+            nextLat = self.nextStation.lat
+            nextLon = self.nextStation.lon
             prevLat = prevStation.lat
             prevLon = prevStation.lon
             
             try:
-                fraction = self.findETA(self.nextStation)/nextStation.intervalTime()
+                fraction = self.findETA(self.nextStation.stationCode)/self.nextStation.intervalTime()
             except:
                 # In face of divide by zero error.
                 fraction = 0.5
@@ -102,6 +101,10 @@ class Station:
         self.seqNum = int(station['SeqNum']) - 1 # Adjust the sequence number to correspond to the list.
         self.arrivals = [] # List of PID entry objects associated with the station
         self.intervalTimes = [] # List of estimated times from the previous station to this one.
+        
+        # Pointers to the next and previous Station objects.
+        self.nextStation = None
+        self.prevStation = None
         
         stationData = railLine.manager.stationData[self.stationCode]
         self.lat = stationData['Lat']
@@ -155,6 +158,12 @@ class RailLine:
             newStation = Station(self, station)
             self.stationList.append(newStation)
             self.stationDict[newStation.stationCode] = newStation
+        
+        for index, station in enumerate(self.stationList):
+            if index < len(self.stationList)-1:
+                station.nextStation = self.stationList[index + 1]
+            if index > 0:
+                station.prevStation = self.stationList[index - 1]
    
     
     def _matchPIDs(self, dictPID):
@@ -244,7 +253,7 @@ class RailLine:
                 newTrain = Train(self, destinationCode)
                 destinationCode = entry['DestinationCode']
                 # print "Creating a new train, between " + self.path[startingNumber - 1]['StationName'] + " and " +  self.path[startingNumber]['StationName']
-                newTrain.update_location(self.stationList[startingNumber].stationCode)
+                newTrain.update_location(self.stationList[startingNumber])
                 entry['Train'] = trainCount
                 newTrain.update_listings(entry)
                 maxWait = entry['Min']
