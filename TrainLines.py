@@ -24,7 +24,6 @@ class Train:
         self.arrivalTimes = {} # Dictionary of arrival times for the train, by station.
         
         self.nextStation = None        # Station object for the next station.
-        self.nextStationIndex = None # Station index for the next station
         
         self.end_of_track = False    # Flag set to TRUE when the train is at the end of the track.
     
@@ -34,10 +33,25 @@ class Train:
         '''
         self.nextStation = nextStation
         
+        
     
     def update_listings(self, newListing):
         self.listings.append(newListing)
         self.arrivalTimes[newListing['LocationCode']] = newListing['Min']
+        
+    def fill_listings(self):
+        '''
+        Estimate arrival times for stations with no associated PID listing.
+        '''
+        maxMinutes = 0
+        for station in self.railLine.stationList[self.nextStation.seqNum:]:
+            if station.stationCode in self.arrivalTimes:
+                maxMinutes = self.arrivalTimes[station.stationCode]
+            else:
+                maxMinutes += station.intervalTime()
+                self.arrivalTimes[station.stationCode] = maxMinutes
+        
+        
     
     def findETA(self, stationCode):
         if stationCode in self.arrivalTimes:
@@ -61,7 +75,7 @@ class Train:
                 self.end_of_track = True
                 self.nextStation = None
             else:
-                self.update_location(self.railLine.stationList[self.nextStationIndex+1].stationCode) # TODO: Make this less hideous.
+                self.update_location(self.nextStation.nextStation) 
     
     def findLocation(self):
         if self.nextStation.seqNum == 0:
