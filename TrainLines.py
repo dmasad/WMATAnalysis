@@ -8,6 +8,7 @@ A suite of functions to identify trains on a specific rail line.
 '''
 #from wmata import WMATA
 from __future__ import division
+from dictClustering import matchTrains
 
 class Train:
     '''
@@ -23,8 +24,14 @@ class Train:
         self.listings = []     # List of all PID Listings associated with the train.
         self.arrivalTimes = {} # Dictionary of arrival times for the train, by station.
         
+        
         self.nextStation = None        # Station object for the next station.
         
+        self.Trains = []
+        self.matched = False
+        
+        self.confidence = 1          # Counter of number of iterations the train has been detected.
+        self.ghost = 0               # Flag for a train that has vanished from the boards, but may still be on the track.
         self.end_of_track = False    # Flag set to TRUE when the train is at the end of the track.
     
     def update_location(self, nextStation):
@@ -211,7 +218,8 @@ class RailLine:
             listing all relevant PID entries for that station in that direction.
         '''
         self._matchPIDs(dictPID)
-        self.Trains = []
+        self.oldTrains = self.Trains
+        self.newTrains = []
 
         for station in self.stationList:
             for entry in station.arrivals:
@@ -225,17 +233,9 @@ class RailLine:
             for entry in station.arrivals:
                 if entry['Train'] is None: self._seekTrainForward(startingNumber, len(self.Trains))
             startingNumber = startingNumber + 1
-            
-        '''
-        while startingNumber < len(self.stationList):
-            if self.stationList[startingNumber].arrivals != []: break
-            startingNumber = startingNumber + 1
-    
-        self.trainCount = 0
-        for entry in self.stationList[startingNumber].arrivals:
-            self._seekTrainForward(startingNumber, len(self.Trains))
-        '''
-    
+        
+        self.Trains = matchTrains(self.oldTrains, self.newTrains)
+
     def _seekTrainForward(self, startingNumber, initTrainCount, destinationCode=None):
         '''
         startingNumber: Index of station to start with.
@@ -292,7 +292,7 @@ class RailLine:
                     else:
                         self._seekTrainForward(counter, self.trainCount)
             counter = counter + 1
-        self.Trains.append(newTrain)
+        self.newTrains.append(newTrain)
         
                     
     def updateStationIntervals(self):

@@ -136,6 +136,7 @@ class WMATADatabase:
             if result[1]==0: reverse = False
             else: reverse = True
             results[(result[0], reverse, result[2])].append(result[3])
+        return results
         
     def saveSchedule(self, schedule, currentTime):
         '''
