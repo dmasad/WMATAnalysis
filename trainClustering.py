@@ -53,6 +53,8 @@ def trainDistance(train1, train2):
     t1 = train1.findETA(next)
     t2 = train2.findETA(next)
     
+    t1 = float(t1)
+    t2 = float(t2)
     return abs(t2 - t1)
         
         

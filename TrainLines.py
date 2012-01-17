@@ -8,7 +8,7 @@ A suite of functions to identify trains on a specific rail line.
 '''
 #from wmata import WMATA
 from __future__ import division
-from dictClustering import matchTrains
+from trainClustering import matchTrains
 
 class Train:
     '''
@@ -54,6 +54,9 @@ class Train:
         for station in self.railLine.stationList[self.nextStation.seqNum:]:
             if station.stationCode in self.arrivalTimes:
                 maxMinutes = self.arrivalTimes[station.stationCode]
+                # Temporary hack:
+                if type(maxMinutes) not in [int, float]: 
+                    maxMinutes = float(maxMinutes) 
             else:
                 maxMinutes += station.intervalTime()
                 self.arrivalTimes[station.stationCode] = maxMinutes
@@ -78,11 +81,12 @@ class Train:
             self.arrivalTimes[key] -= minutes
         
         while self.arrivalTimes[self.nextStation.stationCode] < 0:
-            if self.nextStation == None:
+            if self.nextStation.nextStation is None:
                 self.end_of_track = True
-                self.nextStation = None
+                break
             else:
-                self.update_location(self.nextStation.nextStation) 
+                self.update_location(self.nextStation.nextStation)
+                 
     
     def findLocation(self):
         if self.nextStation.seqNum == 0:
@@ -204,10 +208,12 @@ class RailLine:
                     entry['Min'] = 0
                 else:
                     try: 
-                        entry['Min'] = int(entry['Min'])
+                        int_min = int(entry['Min'])
+                        entry['Min'] = int_min
                     except:
                         arrivals.remove(entry) # Remove empty or nonstandard entries
             station.arrivals = sorted(arrivals, key=lambda k: k['Min'])
+                
         
     
     def findTrains(self, dictPID):
@@ -231,9 +237,13 @@ class RailLine:
         
         for station in self.stationList:
             for entry in station.arrivals:
-                if entry['Train'] is None: self._seekTrainForward(startingNumber, len(self.Trains))
+                if entry['Train'] is None: self._seekTrainForward(startingNumber, len(self.newTrains))
             startingNumber = startingNumber + 1
         
+        # Match the new trains to the old trains:
+        print self.lineCode, self.reverse
+        for train in self.newTrains:
+            train.fill_listings()
         self.Trains = matchTrains(self.oldTrains, self.newTrains)
 
     def _seekTrainForward(self, startingNumber, initTrainCount, destinationCode=None):
